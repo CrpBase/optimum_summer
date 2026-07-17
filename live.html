@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Мій персонаж — камера</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { height:100%; overflow:hidden; background:#000; font-family:-apple-system,system-ui,sans-serif; }
+    /* Живе відео з камери — на весь екран, позаду сцени */
+    #cam { position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; z-index:0; }
+    /* Сцена з персонажем — прозора, поверх відео */
+    a-scene, .a-canvas { position:fixed !important; inset:0; width:100vw !important; height:100vh !important; z-index:1; background:transparent !important; }
+    /* Кнопка старту (iOS любить жест користувача) */
+    #start { position:fixed; inset:0; z-index:5; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:radial-gradient(circle at 50% 40%,#14151c,#050507); color:#fff; }
+    #start h1 { font-size:20px; font-weight:600; }
+    #start p { font-size:14px; opacity:.6; }
+    #start button { margin-top:8px; background:#c8ff2f; color:#0b0b0f; border:none; border-radius:999px; padding:15px 34px; font-size:17px; font-weight:700; }
+    #start.hidden { display:none; }
+  </style>
+</head>
+<body>
+  <video id="cam" autoplay muted playsinline></video>
+
+  <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+    renderer="alpha: true; colorManagement: true; physicallyCorrectLights: true" background="transparent">
+    <a-assets>
+      <!-- Твоя модель (без Draco, вантажиться скрізь) -->
+      <a-asset-item id="char" src="neon-explorer-plain.glb"></a-asset-item>
+    </a-assets>
+
+    <a-entity light="type: ambient; intensity: 1.1"></a-entity>
+    <a-entity light="type: directional; intensity: 0.7" position="1 2 1"></a-entity>
+
+    <!-- Персонаж стоїть перед камерою й танцює.
+         position: X вліво/вправо, Y вгору/вниз, Z — далі від тебе (мінус = вперед).
+         scale: розмір. Крути ці числа під себе. -->
+    <a-gltf-model
+      src="#char"
+      position="0 -1.4 -2.6"
+      rotation="0 0 0"
+      scale="2 2 2"
+      animation-mixer="loop: repeat">
+    </a-gltf-model>
+
+    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+  </a-scene>
+
+  <div id="start">
+    <h1>Мій персонаж 🦊</h1>
+    <p>Увімкни камеру — і він з'явиться перед тобою</p>
+    <button id="go">Увімкнути камеру</button>
+  </div>
+
+  <script>
+    const cam = document.getElementById('cam');
+    const startEl = document.getElementById('start');
+    document.getElementById('go').addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }, audio: false
+        });
+        cam.srcObject = stream;
+        await cam.play();
+        startEl.classList.add('hidden');
+      } catch (e) {
+        alert('Камера не увімкнулась: ' + e.message);
+      }
+    });
+  </script>
+</body>
+</html>
