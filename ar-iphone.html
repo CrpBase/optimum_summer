@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Чубрік в AR</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@c-frame/aframe-extras@7.5.4/dist/aframe-extras.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { width:100%; height:100%; overflow:hidden; font-family:-apple-system,system-ui,sans-serif; background:#000; }
+    #hint { position:fixed; z-index:10; left:0; right:0; bottom:40px; display:flex; justify-content:center; pointer-events:none; transition:opacity .4s; }
+    #hint span { background:rgba(0,0,0,.6); color:#fff; backdrop-filter:blur(8px); padding:12px 20px; border-radius:999px; font-size:15px; font-weight:500; }
+    body.found #hint { opacity:0; }
+    #loader { position:fixed; inset:0; z-index:20; background:#0b0b0f; display:flex; align-items:center; justify-content:center; color:#fff; flex-direction:column; gap:16px; transition:opacity .5s; }
+    #loader.hidden { opacity:0; pointer-events:none; }
+    .spinner { width:42px; height:42px; border:3px solid rgba(255,255,255,.2); border-top-color:#c8ff2f; border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loader"><div class="spinner"></div><div>Завантаження…</div></div>
+  <div id="hint"><span>Наведи камеру на картинку-маркер 🎯</span></div>
+
+  <!--
+    МАРКЕР (imageTargetSrc): зараз стоїть демо-картка MindAR.
+    Роздрукуй/відкрий її на екрані й наведи камеру:
+    https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
+    Свій маркер компілюєш тут (будь-яка контрастна картинка):
+    https://hiukim.github.io/mind-ar-js-doc/tools/compile
+  -->
+  <a-scene
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; autoStart: true; uiScanning: no; uiLoading: no;"
+    gltf-model="dracoDecoderPath: https://www.gstatic.com/draco/v1/decoders/"
+    color-space="sRGB" embedded renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="chubrik" src="neon-explorer.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-light type="ambient" intensity="1"></a-light>
+      <a-light type="directional" intensity="0.6" position="1 1 1"></a-light>
+      <!-- scale/position/rotation підганяєш під маркер -->
+      <a-gltf-model
+        src="#chubrik"
+        rotation="0 0 0"
+        position="0 0 0"
+        scale="0.6 0.6 0.6"
+        animation-mixer="loop: repeat">
+      </a-gltf-model>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const scene=document.querySelector('a-scene'), loader=document.getElementById('loader');
+    scene.addEventListener('arReady',()=>loader.classList.add('hidden'));
+    setTimeout(()=>loader.classList.add('hidden'),6000);
+    const t=document.querySelector('[mindar-image-target]');
+    t.addEventListener('targetFound',()=>document.body.classList.add('found'));
+    t.addEventListener('targetLost',()=>document.body.classList.remove('found'));
+  </script>
+</body>
+</html>
