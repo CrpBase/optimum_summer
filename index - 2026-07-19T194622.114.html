@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Optimum Summer</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="theme-color" content="#FEA158" />
+  <meta name="apple-mobile-web-app-title" content="Optimum Summer" />
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { height:100%; overflow:hidden; background:#000; font-family:-apple-system,system-ui,sans-serif; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+    #cam { position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; z-index:0; background:#000; }
+    a-scene, .a-canvas, canvas.a-canvas { position:fixed !important; inset:0; width:100vw !important; height:100vh !important; z-index:1 !important; background:transparent !important; }
+
+    #chrome { position:fixed; inset:0; z-index:4; pointer-events:none; }
+    #chrome > * { pointer-events:auto; }
+    #ar-logo { position:fixed; top:calc(14px + env(safe-area-inset-top)); left:16px; width:104px; opacity:.85; filter:drop-shadow(0 1px 4px rgba(0,0,0,.5)); }
+    #chars { position:fixed; top:calc(74px + env(safe-area-inset-top)); left:50%; transform:translateX(-50%); display:flex; gap:8px; background:rgba(0,0,0,.35); backdrop-filter:blur(10px); padding:6px; border-radius:999px; }
+    #chars button { border:none; background:transparent; color:#fff; font-size:14px; font-weight:600; padding:9px 15px; border-radius:999px; }
+    #chars button.active { background:#FEA158; color:#1a1205; }
+    #hide { position:fixed; top:calc(14px + env(safe-area-inset-top)); right:14px; width:44px; height:44px; border-radius:50%; border:none; background:rgba(0,0,0,.35); backdrop-filter:blur(10px); color:#fff; font-size:18px; z-index:5; }
+    #shutter { position:fixed; bottom:calc(34px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:26px; }
+    #photo { width:74px; height:74px; border-radius:50%; border:5px solid #fff; background:rgba(255,255,255,.25); }
+    #rec { width:56px; height:56px; border-radius:50%; border:4px solid #fff; background:#ff3b30; }
+    #rec.recording { border-radius:14px; }
+    #tw { position:fixed; bottom:calc(8px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); color:#fff; opacity:.75; font-size:12px; text-decoration:none; }
+    body.clean #ar-logo, body.clean #chars, body.clean #shutter, body.clean #tw { display:none; }
+
+    /* Gesture hints - fade away on their own */
+    #hints { position:fixed; left:0; right:0; top:50%; transform:translateY(-50%); z-index:3; display:flex; justify-content:center; gap:34px;
+      pointer-events:none; opacity:.55; transition:opacity 1s ease; }
+    #hints.gone { opacity:0; }
+    .hint { display:flex; flex-direction:column; align-items:center; gap:6px; color:#fff; font-size:12px; font-weight:600; text-shadow:0 1px 5px rgba(0,0,0,.8); }
+    .hint svg { width:46px; height:46px; opacity:.9; filter:drop-shadow(0 1px 5px rgba(0,0,0,.7)); }
+    body.clean #hints { display:none; }
+
+    #start { position:fixed; inset:0; z-index:6; overflow:hidden; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(165deg,#FFC089 0%,#FEA158 55%,#FF8C3B 100%); color:#1a1205; }
+    #start.hidden { display:none; }
+    .blob { position:absolute; border-radius:50%; filter:blur(55px); opacity:.55; will-change:transform; }
+    .b1 { width:340px; height:340px; background:#B87CFF; top:-80px; left:-70px; animation:float1 9s ease-in-out infinite; }
+    .b2 { width:300px; height:300px; background:#64E27F; bottom:-70px; right:-60px; animation:float2 11s ease-in-out infinite; }
+    .b3 { width:260px; height:260px; background:#51B1FE; top:38%; right:-90px; animation:float3 10s ease-in-out infinite; }
+    @keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,40px)} }
+    @keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,-30px)} }
+    @keyframes float3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,30px)} }
+    .start-inner { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; padding:28px; }
+    #logo { width:220px; max-width:64vw; }
+    #start h1 { font-size:40px; font-weight:800; letter-spacing:3px; color:#141007; margin-top:-4px; }
+    #start .tag { font-size:16px; font-weight:600; max-width:300px; color:#241a08; }
+    #start .sub { font-size:13px; opacity:.6; max-width:270px; color:#2a1e0a; }
+    #start #go { margin-top:14px; background:#141007; color:#fff; border:none; border-radius:999px; padding:16px 40px; font-size:17px; font-weight:700; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    #start .tw2 { position:absolute; bottom:24px; z-index:2; color:#1a1205; opacity:.7; font-size:13px; font-weight:600; text-decoration:none; }
+    #err { position:fixed; bottom:70px; left:16px; right:16px; z-index:7; color:#ffd166; font-size:13px; text-align:center; text-shadow:0 1px 3px #000; }
+  </style>
+</head>
+<body>
+  <video id="cam" autoplay muted playsinline webkit-playsinline></video>
+
+  <a-scene embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+    renderer="alpha: true; colorManagement: true; physicallyCorrectLights: true; preserveDrawingBuffer: true" transparent-bg>
+    <a-assets>
+      <a-asset-item id="static" src="static.glb"></a-asset-item>
+      <a-asset-item id="box" src="box.glb"></a-asset-item>
+      <a-asset-item id="dance" src="dance.glb"></a-asset-item>
+    </a-assets>
+    <a-entity light="type: ambient; intensity: 1.15"></a-entity>
+    <a-entity light="type: directional; intensity: 0.7" position="1 2 1"></a-entity>
+
+    <!-- Rig holds all three; only one visible at a time. Scale/rotate applied to the rig. -->
+    <a-entity id="rig" position="0 -1.2 -3" rotation="0 0 0" scale="2 2 2">
+      <a-gltf-model class="char" data-key="static" src="#static" visible="false" dance></a-gltf-model>
+      <a-gltf-model class="char" data-key="box"    src="#box"    visible="false" dance></a-gltf-model>
+      <a-gltf-model class="char" data-key="dance"  src="#dance"  visible="true"  dance></a-gltf-model>
+    </a-entity>
+
+    <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+  </a-scene>
+
+  <div id="chrome">
+    <img id="ar-logo" src="optimum-logo-white.webp" alt="Optimum" />
+    <div id="chars">
+      <button data-key="static">Static</button>
+      <button data-key="box">Box</button>
+      <button data-key="dance" class="active">Dance</button>
+    </div>
+    <button id="hide" title="Hide / Show">👁</button>
+    <div id="shutter">
+      <button id="photo" title="Photo"></button>
+      <button id="rec" title="Record"></button>
+    </div>
+    <a id="tw" href="https://x.com/baisedit" target="_blank" rel="noopener">@baisedit</a>
+  </div>
+
+  <div id="hints">
+    <div class="hint">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 24H34"/><path d="M18 19l-5 5 5 5"/><path d="M30 19l5 5-5 5"/>
+      </svg>
+      Drag to rotate
+    </div>
+    <div class="hint">
+      <svg viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 29L11 37"/><path d="M11 29v8h8"/><path d="M29 19l8-8"/><path d="M37 19v-8h-8"/>
+      </svg>
+      Pinch to resize
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+    <div class="start-inner">
+      <img id="logo" src="optimum-logo.webp" alt="Optimum" />
+      <h1>SUMMER</h1>
+      <p class="tag">Show how you spend this summer with Optimum ☀️</p>
+      <p class="sub">Turn on the camera. The character will appear in front of you.</p>
+      <button id="go">Turn on camera</button>
+    </div>
+    <a class="tw2" href="https://x.com/baisedit" target="_blank" rel="noopener">@baisedit</a>
+  </div>
+  <div id="err"></div>
+
+  <script>
+    AFRAME.registerComponent('transparent-bg', {
+      init: function () {
+        const apply = () => { const r=this.el.renderer; if(r){ r.setClearColor(0x000000,0); r.setClearAlpha(0);} };
+        if (this.el.renderer) apply(); else this.el.addEventListener('render-target-loaded', apply);
+        this.el.addEventListener('loaded', apply);
+      }
+    });
+    // Each model plays its own clip; only ticks while visible
+    AFRAME.registerComponent('dance', {
+      init: function () {
+        this.mixer = null;
+        const key = this.el.dataset.key || 'model';
+        this.el.addEventListener('model-error', ()=>{ const e=document.getElementById('err'); if(e){ e.style.color='#ff6b6b'; e.textContent='Could not load '+key+'.glb - re-upload it to the repo.'; } });
+        this.el.addEventListener('model-loaded', (e) => {
+          const er=document.getElementById('err'); if(er) er.textContent='';
+          this.mixer = null;
+          const mesh = this.el.getObject3D('mesh');
+          let clips = (mesh && mesh.animations) || (e.detail && e.detail.model && e.detail.model.animations) || [];
+          if (!clips.length) return;
+          this.mixer = new THREE.AnimationMixer(mesh);
+          const a = this.mixer.clipAction(clips[0]); a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play();
+        });
+      },
+      tick: function (t, dt) { if (this.mixer && dt && this.el.object3D.visible) this.mixer.update(dt/1000); }
+    });
+
+    const rig = document.getElementById('rig');
+    let scale = 2, rotY = 0;
+    const applyT = () => { rig.setAttribute('scale', scale+' '+scale+' '+scale); rig.setAttribute('rotation','0 '+rotY+' 0'); };
+    const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+    // Character switch: all preloaded, just toggle visibility
+    function selectChar(key){
+      document.querySelectorAll('#rig .char').forEach(el=>{ el.setAttribute('visible', el.dataset.key===key); });
+      document.querySelectorAll('#chars button').forEach(b=>b.classList.toggle('active', b.dataset.key===key));
+    }
+    document.querySelectorAll('#chars button').forEach(b=>{ b.onclick=()=>selectChar(b.dataset.key); });
+
+    // Finger gestures: 1 finger rotate, 2 fingers scale
+    let startDist=0, startScale=2, lastX=0;
+    const dist=(t)=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+    const skip=(el)=>el.closest('#chrome')||el.closest('#start');
+    window.addEventListener('touchstart',(e)=>{ if(skip(e.target))return;
+      if(e.touches.length===2){ startDist=dist(e.touches); startScale=scale; } else if(e.touches.length===1){ lastX=e.touches[0].clientX; } },{passive:true});
+    window.addEventListener('touchmove',(e)=>{ if(skip(e.target))return;
+      if(e.touches.length===2&&startDist>0){ scale=clamp(startScale*(dist(e.touches)/startDist),0.3,12); applyT(); }
+      else if(e.touches.length===1){ const x=e.touches[0].clientX; rotY+=(x-lastX)*0.5; lastX=x; applyT(); } },{passive:true});
+    window.addEventListener('touchend',()=>{ startDist=0; },{passive:true});
+
+    // One eye toggles hide/show
+    document.getElementById('hide').onclick=()=>document.body.classList.toggle('clean');
+
+    // ===== Capture (forces a fresh render so the character is always in frame) =====
+    const cam=document.getElementById('cam');
+    const wm=new Image(); wm.src='optimum-logo-white.webp';
+    function glCanvas(){ return document.querySelector('canvas.a-canvas'); }
+    function drawCover(ctx,img,W,H){ const iw=img.videoWidth||img.width,ih=img.videoHeight||img.height,s=Math.max(W/iw,H/ih),dw=iw*s,dh=ih*s; ctx.drawImage(img,(W-dw)/2,(H-dh)/2,dw,dh); }
+    function drawWM(ctx,W,H){ if(!wm.complete||!wm.naturalWidth)return; const ww=W*0.22, wh=ww*(wm.naturalHeight/wm.naturalWidth); ctx.globalAlpha=.85; ctx.drawImage(wm, W-ww-W*0.045, H-wh-H*0.04, ww, wh); ctx.globalAlpha=1; }
+    function paint(ctx,W,H){
+      const sc=document.querySelector('a-scene');
+      try { if(sc&&sc.renderer&&sc.camera) sc.renderer.render(sc.object3D, sc.camera); } catch(_){}
+      drawCover(ctx,cam,W,H); ctx.drawImage(glCanvas(),0,0,W,H); drawWM(ctx,W,H);
+    }
+    async function saveBlob(blob, filename){
+      const file=new File([blob], filename, {type:blob.type});
+      if (navigator.canShare && navigator.canShare({files:[file]})){ try { await navigator.share({files:[file]}); return; } catch(_){} }
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+    }
+    document.getElementById('photo').onclick=()=>{
+      try { const gl=glCanvas(),c=document.createElement('canvas'); c.width=gl.width; c.height=gl.height; paint(c.getContext('2d'),c.width,c.height); c.toBlob(b=>{ if(b) saveBlob(b,'optimum-summer.png'); },'image/png'); }
+      catch(e){ err.textContent='Photo failed: '+e.message; }
+    };
+    let mr=null,chunks=[],rafId=0,recCanvas=null,recording=false;
+    function pickMime(){ return ['video/mp4','video/webm;codecs=vp9','video/webm'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||''; }
+    document.getElementById('rec').onclick=()=>{
+      const btn=document.getElementById('rec');
+      if(!recording){
+        if(!window.MediaRecorder){ err.textContent='Recording not supported here. Use the phone screen recorder.'; return; }
+        const gl=glCanvas(); recCanvas=document.createElement('canvas'); recCanvas.width=gl.width; recCanvas.height=gl.height;
+        const rctx=recCanvas.getContext('2d');
+        const loop=()=>{ paint(rctx,recCanvas.width,recCanvas.height); if(recording) rafId=requestAnimationFrame(loop); };
+        const stream=recCanvas.captureStream(30); const mime=pickMime(); chunks=[];
+        try { mr=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); } catch(e){ err.textContent='Recording failed: '+e.message; return; }
+        mr.ondataavailable=(ev)=>{ if(ev.data.size) chunks.push(ev.data); };
+        mr.onstop=()=>{ const b=new Blob(chunks,{type:mr.mimeType||'video/mp4'}); const ext=(mr.mimeType||'').includes('webm')?'webm':'mp4'; saveBlob(b,'optimum-summer.'+ext); };
+        recording=true; btn.classList.add('recording'); loop(); mr.start();
+      } else { recording=false; btn.classList.remove('recording'); cancelAnimationFrame(rafId); if(mr&&mr.state!=='inactive') mr.stop(); }
+    };
+
+    const startEl=document.getElementById('start'), err=document.getElementById('err');
+    document.getElementById('go').addEventListener('click', async ()=>{
+      err.textContent='';
+      try { let stream;
+        try { stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'} }, audio:false }); }
+        catch(e1){ stream=await navigator.mediaDevices.getUserMedia({ video:true, audio:false }); }
+        cam.srcObject=stream; await cam.play(); startEl.classList.add('hidden');
+        const h=document.getElementById('hints');
+        setTimeout(()=>h.classList.add('gone'), 5000);
+        window.addEventListener('touchstart', ()=>h.classList.add('gone'), {once:true, passive:true});
+      } catch(e){ err.style.color='#ff6b6b'; err.textContent='Camera failed: '+(e&&e.message?e.message:e); }
+    });
+  </script>
+</body>
+</html>
